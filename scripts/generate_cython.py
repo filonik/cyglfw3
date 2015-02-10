@@ -182,6 +182,13 @@ pyx_supplemental = """
 # Supplemental
 #
 
+from cpython.mem cimport PyMem_Malloc, PyMem_Free
+
+import numpy as np
+cimport numpy as np
+
+np.import_array() 
+
 #
 # Callbacks
 #
@@ -504,18 +511,50 @@ cdef class GammaRamp:
         return <size_t>self._this_ptr
 
 cdef class Image:
-    cdef const cglfw3.GLFWimage * _this_ptr
+    cdef cglfw3.GLFWimage * _this_ptr
+    cdef np.ndarray _pixels
     
     def __cinit__(self):
-        self._this_ptr = NULL
+        self._this_ptr = <cglfw3.GLFWimage *>PyMem_Malloc(sizeof(cglfw3.GLFWimage))
     
+    def __dealloc__(self):
+        PyMem_Free(self._this_ptr)
+        
+    # These are no longer needed since np.ndarray knows its shape.
+    '''
     property width:
         def __get__(self):
             return self._this_ptr.width
-
+            
     property height:
         def __get__(self):
             return self._this_ptr.height
+    '''
+    
+    # This is brittle, we need to keep the memory valid for the lifetime of the object.
+    '''
+    property pixels:
+        def __get__(self):
+            cdef np.npy_intp shape[3]
+            shape[0] = self._this_ptr.height
+            shape[1] = self._this_ptr.width
+            shape[2] = 4
+            return np.PyArray_SimpleNewFromData(3, shape, np.NPY_UBYTE, <void*>self._this_ptr.pixels)
+    '''
+    
+    property pixels:
+        def __get__(self):
+            return self._pixels
+        
+        def __set__(self, value):
+            cdef np.ndarray[np.npy_ubyte, ndim=3, mode="c"] pixels
+            pixels = np.ascontiguousarray(value, dtype=np.ubyte)
+            
+            self._this_ptr.height = pixels.shape[0]
+            self._this_ptr.width = pixels.shape[1]
+            self._this_ptr.pixels = <unsigned char*>pixels.data
+            
+            self._pixels = pixels
     
     def __richcmp__(Image self, Image other, int op):
         if op == 0:

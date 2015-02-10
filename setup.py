@@ -3,6 +3,8 @@ import sys
 from setuptools import setup, Extension
 from setuptools.dist import Distribution
 
+import numpy as np
+
 execfile('cyglfw3/version.py')
 
 # auto-install cython
@@ -69,6 +71,7 @@ setup(
     package_data={'cyglfw3':['*.pyx', '*.pxd', '*.c']},
     cmdclass={'build_ext': build_ext},
     requires=['cython'],
+    include_dirs = [np.get_include()],
     ext_modules=ext_modules,
     platforms=['any'],
     classifiers=(
